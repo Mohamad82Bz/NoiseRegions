@@ -1,0 +1,7 @@
+name: NoiseRegions
+version: '${version}'
+main: me.mohamad82.noiseregions.NoiseRegions
+api-version: 1.13
+authors: [ Mohamad82 ]
+commands:
+  noiseregion:
