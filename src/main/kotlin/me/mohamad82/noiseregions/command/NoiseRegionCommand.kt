@@ -33,9 +33,9 @@ class NoiseRegionCommand: CommandExecutor {
 
     private val THREAD_FACTORY = ThreadFactoryBuilder().setNameFormat("noiseregions-async-thread-%d").build()
 
-    val config = YamlConfig(NoiseRegions.PLUGIN.dataFolder, "config.yml").config
+    val config = YamlConfig(NoiseRegions.PLUGIN.dataFolder, "config.yml")
 
-    private val asyncExecutor = Executors.newFixedThreadPool(config.getInt("max_threads", 10), THREAD_FACTORY)
+    private val asyncExecutor = Executors.newFixedThreadPool(config.config.getInt("max_threads", 10), THREAD_FACTORY)
 
     val regions = mutableMapOf<Int, MutableSet<BlockVector2>>()
     val polygons = mutableMapOf<ProtectedPolygonalRegion, Set<BlockVector2>>()
@@ -49,23 +49,36 @@ class NoiseRegionCommand: CommandExecutor {
         }
 
         when (args[0]) {
+            "clear", "delete" -> {
+                runnable?.cancel()
+                runnable = null
+                regions.clear()
+                polygons.clear()
+
+                sender.sendMessage("In-memory (Unsaved) regions have been deleted.")
+            }
+            "reload" -> {
+                config.reloadConfig()
+
+                sender.sendMessage("Config has been reloaded.")
+            }
             "gen", "generate" -> {
                 val random = ThreadLocalRandom.current().nextInt()
                 val noiseGen = FastNoiseLite(random)
                 noiseGen.SetNoiseType(FastNoiseLite.NoiseType.Cellular)
                 noiseGen.SetRotationType3D(FastNoiseLite.RotationType3D.None)
-                noiseGen.SetFrequency(config.getDouble("frequency").toFloat())
+                noiseGen.SetFrequency(config.config.getDouble("frequency").toFloat())
 
                 noiseGen.SetFractalType(FastNoiseLite.FractalType.None)
 
                 noiseGen.SetCellularDistanceFunction(FastNoiseLite.CellularDistanceFunction.Hybrid)
                 noiseGen.SetCellularReturnType(FastNoiseLite.CellularReturnType.CellValue)
-                noiseGen.SetCellularJitter(config.getDouble("jitter", 0.5).toFloat())
+                noiseGen.SetCellularJitter(config.config.getDouble("jitter", 0.5).toFloat())
 
-                val minX = config.getInt("min_x")
-                val maxX = config.getInt("max_x")
-                val minZ = config.getInt("min_z")
-                val maxZ = config.getInt("max_z")
+                val minX = config.config.getInt("min_x")
+                val maxX = config.config.getInt("max_x")
+                val minZ = config.config.getInt("min_z")
+                val maxZ = config.config.getInt("max_z")
 
                 val totalProgress = (maxX - minX) * (maxZ - minZ)
                 val progress = AtomicInteger(0)
