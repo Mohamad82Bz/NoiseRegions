@@ -9,6 +9,8 @@ max_threads: 20 # Depends on your CPU, if the server seems to lag/crash, decreas
 frequency: 0.01 # Smaller number = Bigger regions
 jitter: 0.5 # 0 will create exactly square-shaped regions, increasing this will make regions more un-even, note that if you increase it too much it may randomly create very small or very big regions
 
+small_cluster_skip: 2000
+
 # Used for region names
 types:
   plains:

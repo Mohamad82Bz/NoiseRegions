@@ -43,6 +43,10 @@ class NoiseRegionCommand: CommandExecutor {
     var runnable: BukkitTask? = null
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+        if (!sender.hasPermission("noiseregions.admin")) {
+            sender.sendMessage("${ChatColor.DARK_RED}You don't have permission to perform this command!")
+            return true
+        }
         if (sender !is Player) {
             sender.sendMessage("You must be a player to use this command")
             return true
@@ -136,6 +140,7 @@ class NoiseRegionCommand: CommandExecutor {
 
                 val totalProgress = regions.size
                 val progress = AtomicInteger(0)
+                val biomeRegionNames = mutableMapOf<String, AtomicInteger>()
                 val animation = CharAnimation(CharAnimation.Style.SQUARE_BLOCK)
 
                 Thread {
@@ -155,8 +160,8 @@ class NoiseRegionCommand: CommandExecutor {
                                 }
                                 cluster.removeAll(removedBlocks)
 
-                                if (cluster.size < 2000) {
-                                    println("Skipping a cluster because its size is too small: ${cluster.size}")
+                                if (cluster.size < config.config.getInt("small_cluster_skip", 2000)) {
+                                    println("Skipping a small cluster. 2d size was: ${cluster.size}")
                                     continue
                                 }
 
@@ -183,10 +188,19 @@ class NoiseRegionCommand: CommandExecutor {
                                     }
                                 }
 
+                                val regionNumberAtomic: AtomicInteger
+
+                                if (biomeRegionNames.contains(biomeName!!)) {
+                                    regionNumberAtomic = biomeRegionNames[biomeName]!!
+                                } else {
+                                    regionNumberAtomic = AtomicInteger(0)
+                                    biomeRegionNames[biomeName] = regionNumberAtomic
+                                }
+
                                 println("Creating polygon for a cluster with size: ${cluster.size}")
 
                                 polygons[ProtectedPolygonalRegion(
-                                    "$biomeName-$regionNumber-${ThreadLocalRandom.current().nextInt()}",
+                                    "$biomeName-${regionNumberAtomic.addAndGet(1)}",
                                     getBorders(cluster.toMutableSet()).toList(),
                                     sender.world.minHeight,
                                     sender.world.maxHeight
@@ -216,6 +230,7 @@ class NoiseRegionCommand: CommandExecutor {
             }
             "visualizer", "vis" -> {
                 if (runnable != null) {
+                    sender.sendMessage("Visualizer was already activated, deactivating first..")
                     runnable!!.cancel()
                     runnable = null
                 }
@@ -226,7 +241,7 @@ class NoiseRegionCommand: CommandExecutor {
                                 for (block in polygons[polygon]!!) {
                                     sender.world.spawnParticle(
                                         Particle.REDSTONE,
-                                        sender.world.getBlockAt(block.x, 90, block.z).location,
+                                        sender.world.getBlockAt(block.x, sender.location.blockY - 1, block.z).location,
                                         1,
                                         DustOptions(
                                             Color.RED,
@@ -238,11 +253,15 @@ class NoiseRegionCommand: CommandExecutor {
                         }
                     }
                 }.runTaskTimer(NoiseRegions.PLUGIN, 0, 5)
+                sender.sendMessage("Visualizer activated.")
             }
             "cancel" -> {
                 if (runnable != null) {
+                    sender.sendMessage("Visualizer has been stopped.")
                     runnable!!.cancel()
                     runnable = null
+                } else {
+                    sender.sendMessage("Visualizer is not running.")
                 }
             }
             "save" -> {
@@ -253,8 +272,9 @@ class NoiseRegionCommand: CommandExecutor {
                 }
                 regions.save()
                 regions.saveChanges()
+                sender.sendMessage("Regions have been saved to WorldGuard.")
             }
-            "checkregion" -> {
+            /*"checkregion" -> {
                 sender.sendMessage("Polygons: ${polygons.size}")
                 sender.sendMessage("Regions: ${regions.size}")
                 for (polygon in polygons.keys) {
@@ -282,7 +302,7 @@ class NoiseRegionCommand: CommandExecutor {
                         }
                     }
                 }
-            }
+            }*/
         }
 
         return true
